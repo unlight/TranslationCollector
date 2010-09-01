@@ -54,14 +54,17 @@ Better detection default code // $Definition['Theme_$Key'] = '';
 console param to collect codes from desired application/plugin
 how we can catch this array_map('T', array())?
 remove garbage: if (!$this->t->isDone()) minify plugin
+
+7. CONFIG
+$Configuration['Plugins']['TranslationCollector']['SkipApplications'] = array();
 */
 
 
 $PluginInfo['TranslationCollector'] = array(
 	'Name' => 'Translation collector',
 	'Description' => 'Collects undefined translation codes and save it for translating.',
-	'Version' => '1.3',
-	'Date' => '28 Aug 2010'
+	'Version' => '1.4',
+	'Date' => '2 Sep 2010'
 );
 
 class TranslationCollectorPlugin implements Gdn_IPlugin {
@@ -81,9 +84,13 @@ class TranslationCollectorPlugin implements Gdn_IPlugin {
 	}
 	
 	public function Gdn_Locale_BeforeTranslate_Handler(&$Sender) {
-		$Code = ArrayValue('Code', $Sender->EventArguments, '');
+		$Application = $this->_EnabledApplication();
+		$SkipApplications = C('Plugins.TranslationCollector.SkipApplications', array());
+		if (in_array($Application, $SkipApplications)) return;
+		
+		$Code = GetValue('Code', $Sender->EventArguments, '');
 		if(array_key_exists($Code, $this->_Definition)) return;
-		$File = CombinePaths(array(dirname(__FILE__), 'undefined', $this->_EnabledApplication().'.php'));
+		$File = CombinePaths(array(dirname(__FILE__), 'undefined', $Application.'.php'));
 		$HelpText = 'TRANSLATE, CUT AND PASTE THIS TO /applications/application-folder/locale/locale-name-folder/definitions.php';
 		$HelpText .= '\xEF\xBB\xBF'; // UTF-8 byte order mask
 		if(!file_exists($File)) Gdn_FileSystem::SaveFile($File, "<?php // $HelpText\n");
