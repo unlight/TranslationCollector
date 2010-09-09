@@ -9,7 +9,7 @@
 
 2. INSTALL
 ==========
-Make sure for exists event BeforeTranslate ~ line 200 in /library/core/class.locale.php
+Make sure for exists event BeforeTranslate ~ line 220 in /library/core/class.locale.php
 If it is not, add lines:
 $this->EventArguments['Code'] = $Code;
 $this->FireEvent('BeforeTranslate');
@@ -18,7 +18,7 @@ if (array_key_exists($Code, $this->_Definition)) {
 
 3. USAGE
 ========
-Enable plugin in dashboard, and see plugins directory /plugins/TranslationCollector
+Enable plugin in dashboard, and see plugins directory /plugins/TranslationCollector/undefined
 Translation codes will be saved to file [ApplicationName].php
 [!] Already translated codes (definitions which are exists in locale files) will NOT be saved.
 
@@ -31,6 +31,8 @@ This is issue fixed in version 1.1
 
 5. CHANGELOG
 ============
+2 Sep 2010 / 1.4
+[unknown] something changed
 28 Aug 2010 / 1.3
 [fix] http://github.com/vanillaforums/Garden/issues/issue/497
 [alt] non *handler methods made protected [no need check it by PluginManager::RegisterPlugins()]
@@ -70,6 +72,7 @@ $PluginInfo['TranslationCollector'] = array(
 class TranslationCollectorPlugin implements Gdn_IPlugin {
 	
 	private $_Definition = array();
+	private $_EnabledApplication = 'Dashboard';
 	
 	public function __construct(){
 		$Locale = Gdn::Locale();
@@ -103,8 +106,6 @@ class TranslationCollectorPlugin implements Gdn_IPlugin {
 			Gdn_FileSystem::SaveFile($File, $FileContent);
 		}
 	}
-
-	private $_EnabledApplication = 'Dashboard';
 		
 	public function Gdn_Dispatcher_AfterEnabledApplication_Handler(&$Sender) {
 		$this->_EnabledApplication = ArrayValue('EnabledApplication', $Sender->EventArguments, 'Dashboard');
