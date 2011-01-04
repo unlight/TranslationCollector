@@ -65,7 +65,7 @@ $Configuration['Plugins']['TranslationCollector']['SkipApplications'] = array();
 $PluginInfo['TranslationCollector'] = array(
 	'Name' => 'Translation collector',
 	'Description' => 'Collects undefined translation codes and save it for translating.',
-	'Version' => '1.4.7',
+	'Version' => '1.5.8',
 	'Date' => '4 Jan 2011'
 );
 
@@ -78,9 +78,13 @@ class TranslationCollectorPlugin implements Gdn_IPlugin {
 		$Locale = Gdn::Locale();
 		unset($Locale->EventArguments['WildEventStack']);
 		$Export = var_export($Locale, True);
-		$RegExp = "/\s+'_Definition' => (\s+ array \(.+?,\s+\)),/s";
-		preg_match($RegExp, $Export, $Match);
-		eval("\$this->_Definition = $Match[1];");
+		$CutPointA = strpos($Export, "'_Definition' =>") + 16;
+		$CutPointB = strrpos($Export, "'_Locale' =>", $CutPointA);
+		if ($CutPointA === False || $CutPointB === False) 
+			trigger_error('Failed to detect CutPoints.');
+		$Match = substr($Export, $CutPointA, ($CutPointB - $CutPointA));
+		$Match = trim(trim(trim($Match), ','));
+		eval("\$this->_Definition = $Match;");
 	}
 	
 	protected function Translate($Code) {
