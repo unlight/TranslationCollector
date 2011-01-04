@@ -65,7 +65,7 @@ $Configuration['Plugins']['TranslationCollector']['SkipApplications'] = array();
 $PluginInfo['TranslationCollector'] = array(
 	'Name' => 'Translation collector',
 	'Description' => 'Collects undefined translation codes and save it for translating.',
-	'Version' => '1.4.6',
+	'Version' => '1.4.7',
 	'Date' => '4 Jan 2011'
 );
 
@@ -78,9 +78,9 @@ class TranslationCollectorPlugin implements Gdn_IPlugin {
 		$Locale = Gdn::Locale();
 		unset($Locale->EventArguments['WildEventStack']);
 		$Export = var_export($Locale, True);
-		if(preg_match("/   '_Definition' => ((.+?)\n  \)),/s", $Export, $Match)){
-			if(isset($Match[1])) eval("\$this->_Definition = $Match[1];");
-		}
+		$RegExp = "/\s+'_Definition' => (\s+ array \(.+?,\s+\)),/s";
+		preg_match($RegExp, $Export, $Match);
+		eval("\$this->_Definition = $Match[1];");
 	}
 	
 	protected function Translate($Code) {
@@ -94,6 +94,7 @@ class TranslationCollectorPlugin implements Gdn_IPlugin {
 		
 		$Code = GetValue('Code', $Sender->EventArguments, '');
 		if (array_key_exists($Code, $this->_Definition)) return;
+		
 		$File = CombinePaths(array(dirname(__FILE__), 'undefined', $Application.'.php'));
 		$HelpText = 'TRANSLATE, CUT AND PASTE THIS TO /applications/application-folder/locale/locale-name-folder/definitions.php';
 		$HelpText .= '\xEF\xBB\xBF'; // UTF-8 byte order mask
