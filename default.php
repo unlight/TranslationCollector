@@ -65,8 +65,8 @@ $Configuration['Plugins']['TranslationCollector']['SkipApplications'] = array();
 $PluginInfo['TranslationCollector'] = array(
 	'Name' => 'Translation collector',
 	'Description' => 'Collects undefined translation codes and save it for translating.',
-	'Version' => '1.4',
-	'Date' => '2 Sep 2010'
+	'Version' => '1.4.6',
+	'Date' => '4 Jan 2011'
 );
 
 class TranslationCollectorPlugin implements Gdn_IPlugin {
@@ -74,15 +74,16 @@ class TranslationCollectorPlugin implements Gdn_IPlugin {
 	private $_Definition = array();
 	private $_EnabledApplication = 'Dashboard';
 	
-	public function __construct(){
+	public function __construct() {
 		$Locale = Gdn::Locale();
-		$Export = var_export($Locale, 1);
+		unset($Locale->EventArguments['WildEventStack']);
+		$Export = var_export($Locale, True);
 		if(preg_match("/   '_Definition' => ((.+?)\n  \)),/s", $Export, $Match)){
 			if(isset($Match[1])) eval("\$this->_Definition = $Match[1];");
 		}
 	}
 	
-	protected function Translate($Code){
+	protected function Translate($Code) {
 		return ArrayValue($Code, $this->_Definition);
 	}
 	
@@ -92,14 +93,14 @@ class TranslationCollectorPlugin implements Gdn_IPlugin {
 		if (in_array($Application, $SkipApplications)) return;
 		
 		$Code = GetValue('Code', $Sender->EventArguments, '');
-		if(array_key_exists($Code, $this->_Definition)) return;
+		if (array_key_exists($Code, $this->_Definition)) return;
 		$File = CombinePaths(array(dirname(__FILE__), 'undefined', $Application.'.php'));
 		$HelpText = 'TRANSLATE, CUT AND PASTE THIS TO /applications/application-folder/locale/locale-name-folder/definitions.php';
 		$HelpText .= '\xEF\xBB\xBF'; // UTF-8 byte order mask
-		if(!file_exists($File)) Gdn_FileSystem::SaveFile($File, "<?php // $HelpText\n");
+		if (!file_exists($File)) Gdn_FileSystem::SaveFile($File, "<?php // $HelpText\n");
 		$Definition = array();
 		include $File;
-		if(!array_key_exists($Code, $Definition)){
+		if (!array_key_exists($Code, $Definition)) {
 			$FileContent = file_get_contents($File);
 			$Code = var_export($Code, True); // should be escaped
 			$FileContent .= "\n\$Definition[".$Code."] = $Code;";
@@ -115,7 +116,7 @@ class TranslationCollectorPlugin implements Gdn_IPlugin {
 		return $this->_EnabledApplication;
 	}
 	
-	public function Setup(){
+	public function Setup() {
 	}
 	
 	
