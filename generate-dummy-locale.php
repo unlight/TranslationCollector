@@ -28,13 +28,15 @@ require_once PATH_ROOT.DS.'bootstrap.php';
 $Applications = array('Dashboard', 'Vanilla', 'Conversations');
 $Applications = array_combine($Applications, array_map('strtolower', $Applications));
 
+$bSkipAlreadyTranslated = True;
+
 $T = Gdn::FactoryOverwrite(TRUE);
 $DefaultLocale = new Gdn_Locale('en-CA', $Applications, array());
 Gdn::FactoryInstall(Gdn::AliasLocale, 'Gdn_Locale', PATH_LIBRARY_CORE.DS.'class.locale.php', Gdn::FactorySingleton, $DefaultLocale);
 Gdn::FactoryOverwrite($T);
 
 
-/*$TestFile = dirname(__FILE__).DS.'_____test-ss.php';
+/*$TestFile = dirname(__FILE__).DS.'________class.invitationmodel.php';
 GetTranslationFromFile($TestFile);die;*/
 
 $Locale = array();
@@ -42,31 +44,55 @@ $Directory = new RecursiveDirectoryIterator(PATH_ROOT);
 foreach(new RecursiveIteratorIterator($Directory) as $File){
 	$RealPath = $File->GetRealPath();
 	$Extension = strtolower(pathinfo($RealPath, 4));
-	if($Extension != 'php') continue;
+	$FileName = strtolower(pathinfo($RealPath, 8));
+	if ($Extension != 'php') continue;
+	if (strpos($FileName, '__') !== False) continue;
 	$Path = substr($RealPath, strlen(PATH_ROOT) + 1);
 	$PathArray = explode('/', str_replace('\\', '/', $Path));
 	$StoreDirectory = 'applications/dashboard';
-	if(in_array($PathArray[0], array('applications', 'plugins'))) $StoreDirectory = $PathArray[0].'/'.$PathArray[1];
-	if(in_array($PathArray[0], array('themes'))) continue;
+	if (in_array($PathArray[0], array('applications', 'plugins'))) $StoreDirectory = $PathArray[0].'/'.$PathArray[1];
+	if (in_array($PathArray[0], array('themes'))) continue;
 	$StoreDirectory .= '/locale/zz-ZZ';
 	$StoreDirectory = dirname(__FILE__).'/dummy-locale/' . $StoreDirectory;
 	$DefinitionsFile = $StoreDirectory . '/definitions.php';
 	$Codes = GetTranslationFromFile($RealPath);
-	if(!isset($Locale[$DefinitionsFile])) $Locale[$DefinitionsFile] = array();
-	$Locale[$DefinitionsFile] = array_merge($Locale[$DefinitionsFile], $Codes);
+	$LocalFileHash = md5($RealPath);
+	if (!isset($Locale[$DefinitionsFile][$LocalFileHash])) $Locale[$DefinitionsFile][$LocalFileHash] = array();
+	$R =& $Locale[$DefinitionsFile][$LocalFileHash];
+	$R = array_merge($R, $Codes);
+	
+	//if (@$Count++ > 50) break;
 }
+
+if ($bSkipAlreadyTranslated) {
+	$T = Gdn::FactoryOverwrite(TRUE);
+	$DefaultLocale = new Gdn_Locale(C('Garden.Locale'), $Applications, array());
+	Gdn::FactoryInstall(Gdn::AliasLocale, 'Gdn_Locale', PATH_LIBRARY_CORE.DS.'class.locale.php', Gdn::FactorySingleton, $DefaultLocale);
+	Gdn::FactoryOverwrite($T);
+}
+
+
 // save it
 $Date = date('r');
-foreach($Locale as $File => $Codes){
-	if(count($Codes) == 0) continue;
+foreach ($Locale as $File => $LocalFiles) {
+	
 	$Directory = dirname($File);
-	if(!is_dir($Directory)) mkdir($Directory, 0777, True);
+	if (!is_dir($Directory)) mkdir($Directory, 0777, True);
 	$FileContent = "<?php\n// Date: $Date \xEF\xBB\xBF"; // byte order mask
-	foreach($Codes as $Code => $T){
-		$Code = var_export($Code, True);
-		$T = var_export($T, True);
-		$FileContent .= "\n\$Definition[{$Code}] = $T;";
+	
+	foreach($LocalFiles as $Hash => $Codes) {
+		if (count($Codes) == 0) continue;
+		
+		$FileContent .= "\n";
+		
+		foreach($Codes as $Code => $T){
+			if ($bSkipAlreadyTranslated) if ($T != T($Code)) continue;
+			$Code = var_export($Code, True);
+			$T = var_export($T, True);
+			$FileContent .= "\n\$Definition[{$Code}] = $T;";
+		}
 	}
+	
 	Gdn_FileSystem::SaveFile($File, $FileContent);
 }
 
@@ -80,7 +106,7 @@ function GetTranslationFromFile($File){
 		if($TokenNum != 307) continue;
 		$FunctionName = strtolower($TokenData[1]);
 		// Form
-		$Functions = array('t', 'translate', 'plural', 'button', 'close', 'label');
+		$Functions = array('adderror', 't', 'translate', 'plural', 'button', 'close', 'label', 'addvalidationresult');
 		if(!in_array($FunctionName, $Functions)) continue;
 		// find strings between () [also default code]
 		$NextTokens = array_slice($AllTokens, $N);
@@ -111,18 +137,28 @@ function GetTranslationFromFile($File){
 		$bForm = in_array($FunctionName, array('button', 'close', 'label'));
 		$bDefaultCode = (!$bForm && array_key_exists(',', $CountTokenValues) && $CountTokenValues[','] == 1 && count($Strings) == 2);
 		$bConcatenated = in_array('.', $TokenValues);
+		
 		// save to array and return
-		foreach($Strings as $String){
-			if($bDefaultCode){
+
+		foreach($Strings as $N => $String){
+			if ($FunctionName == 'addvalidationresult') {
+				$bDefaultCode = False;
+				if ($N == 1) {
+					$Result[$String] = 'vr. %s: ' . $String;
+					continue;
+				}
+			}
+			if ($bDefaultCode) {
 				$Result[$String] = $Strings[1];
 				break;
 			}
 			$T = $String;
-			if($bPluralForms) $T = 'pl. '.$String;
+			if ($bPluralForms) $T = 'pl. '.$String;
 			$Result[$String] = T($T);
-			if($bForm) break;
+			if ($bForm) break;
 		}
 	}
+
 	return $Result;
 }
 
