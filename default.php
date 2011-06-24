@@ -1,7 +1,7 @@
 <?php if (!defined('APPLICATION')) exit();
 
 $PluginInfo['TranslationCollector'] = array(
-	'Name' => 'Translation collector',
+	'Name' => 'Translation Collector',
 	'Description' => 'Collects undefined translation codes and save it for translating.',
 	'Version' => '1.6.9',
 	'Date' => 'Summer 2011'
