@@ -22,7 +22,7 @@ CHANGELOG
 - no need to make hack in Gdn_Locale (BeforeTranslate event)
 
 1.3 [28 Aug 2010]
- - fixed http://github.com/vanillaforums/Garden/issues/issue/497
+- fixed http://github.com/vanillaforums/Garden/issues/issue/497
 - non *handler methods made protected [no need check it by PluginManager::RegisterPlugins()]
 - added default translate for english codes eg. EmailWelcome, PasswordRequest, etc.
 - added collect codes from form methods (Label, Button, etc.)
