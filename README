@@ -1,0 +1,49 @@
+DESCRIPTION
+===========
+1. Plugin catch undefined translation codes and save it 
+2. Generates dummy locale for all applications and plugins (see generate-dummy-locale.php)
+	Requires UsefulFunctions plugin.
+
+USAGE
+=====
+Enable plugin in dashboard, and see plugins directory /plugins/TranslationCollector/undefined
+Translation codes will be saved to file [ApplicationName].php
+[!] Already translated codes (definitions which are exists in locale files) will NOT be saved.
+
+CONFIG
+======
+$Configuration['Plugins']['TranslationCollector']['SkipApplications'] = array(); // Applications which collecting is not applied
+$Configuration['Plugins']['TranslationCollector']['CaptureDefinitions'] = True; // disable/enable collecting
+
+CHANGELOG
+=========
+1.6 [24 Jun 2010]
+- advanced dummy-locale generator with options
+- no need to make hack in Gdn_Locale (BeforeTranslate event)
+
+1.3 [28 Aug 2010]
+ - fixed http://github.com/vanillaforums/Garden/issues/issue/497
+- non *handler methods made protected [no need check it by PluginManager::RegisterPlugins()]
+- added default translate for english codes eg. EmailWelcome, PasswordRequest, etc.
+- added collect codes from form methods (Label, Button, etc.)
+
+1.2 [01 Aug 2010]
+- new dummy locale generator
+- undefined definitions moved to directory "undefined"
+- added byte order mask for saved files
+
+1.1 [19 Jun 2010]
+- fixed issue (syntax error, unexpected T_STRING, expecting ']')
+- cahnged default application Vanilla to Dashboard
+
+1.0 [17 Jun 2010]
+- first release
+
+TODO
+====
+option skip already translated strings
+fix warning: Unterminated comment starting
+Better detection default code // $Definition['Theme_$Key'] = '';
+console param to collect codes from desired application/plugin
+how we can catch this array_map('T', array())?
+remove garbage: if (!$this->t->isDone()) minify plugin

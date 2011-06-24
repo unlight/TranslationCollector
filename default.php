@@ -1,78 +1,51 @@
 <?php if (!defined('APPLICATION')) exit();
 
-/*
-1. DESCRIPTION
-==============
-1. Plugin catch undefined translate codes and save it 
-(Make sure for exists event BeforeTranslate ~ line 200 in /library/core/class.locale.php)
-2. Generates dummy locale for all applications and plugins (see generate-dummy-locale.php)
-
-2. INSTALL
-==========
-Make sure for exists event BeforeTranslate ~ line 220 in /library/core/class.locale.php
-If it is not, add lines:
-$this->EventArguments['Code'] = $Code;
-$this->FireEvent('BeforeTranslate');
-Before this line:
-if (array_key_exists($Code, $this->_Definition)) {
-
-3. USAGE
-========
-Enable plugin in dashboard, and see plugins directory /plugins/TranslationCollector/undefined
-Translation codes will be saved to file [ApplicationName].php
-[!] Already translated codes (definitions which are exists in locale files) will NOT be saved.
-
-4. KNOWN ISSUES
-===============
-If you get error: syntax error, unexpected T_STRING, expecting ']' in
-/some/path/to/plugins/TranslationCollector/[ApplicationName].php 
-If you get this error remove line or delete this file.
-This is issue fixed in version 1.1
-
-5. CHANGELOG
-============
-2 Sep 2010 / 1.4
-[unknown] something changed
-28 Aug 2010 / 1.3
-[fix] http://github.com/vanillaforums/Garden/issues/issue/497
-[alt] non *handler methods made protected [no need check it by PluginManager::RegisterPlugins()]
-[add] default translate for english codes eg. EmailWelcome, PasswordRequest, etc.
-[add] collect codes from form methods (Label, Button, etc.)
-01 Aug 2010 / 1.2
-[new] dummy locale generator
-[alt] undefined definitions moved to directory "undefined"
-[add] byte order mask for saved files
-19 Jun 2010 / 1.1
-[fix] fixed issue (syntax error, unexpected T_STRING, expecting ']')
-[alt] default application Vanilla to Dashboard
-17 Jun 2010 / 1.0
-[new] first release
-
-6. TODO
-=======
-option skip already translated strings
-fix warning: Unterminated comment starting
-Better detection default code // $Definition['Theme_$Key'] = '';
-console param to collect codes from desired application/plugin
-how we can catch this array_map('T', array())?
-remove garbage: if (!$this->t->isDone()) minify plugin
-
-7. CONFIG
-$Configuration['Plugins']['TranslationCollector']['SkipApplications'] = array();
-*/
-
-
 $PluginInfo['TranslationCollector'] = array(
 	'Name' => 'Translation collector',
 	'Description' => 'Collects undefined translation codes and save it for translating.',
-	'Version' => '1.5.8',
-	'Date' => '4 Jan 2011'
+	'Version' => '1.6.9',
+	'Date' => 'Summer 2011'
 );
+
+
+
+if (C('Plugins.TranslationCollector.CaptureDefinitions', True)) {
+	
+	class TranslationCollectorLocale extends Gdn_Locale {
+		
+		public function __construct($LocaleName = Null, $ApplicationWhiteList = Null, $PluginWhiteList = Null, $ForceRemapping = FALSE) {
+			// If called from PluginManager::GetPluginInstance()
+			// Do nothing.
+			if ($LocaleName === Null) return;
+			parent::__construct($LocaleName, $ApplicationWhiteList, $PluginWhiteList, $ForceRemapping);
+		}
+		
+		public function Translate($Code, $Default = False) {
+			$this->EventArguments['Code'] = $Code;
+			$this->FireEvent('BeforeTranslate');
+			$Result = parent::Translate($Code, $Default);
+			return $Result;
+		}
+	}
+	
+	$TcLocale = Gdn::Locale();
+	if (is_null($TcLocale)) {
+		$CurrentLocale = Gdn::Config('Garden.Locale', 'en-CA');
+		$TcLocale = new TranslationCollectorLocale($CurrentLocale, C('EnabledApplications'), C('EnabledPlugins'));
+		$Overwrite = Gdn::FactoryOverwrite(True);
+		Gdn::FactoryInstall(Gdn::AliasLocale, 'TranslationCollectorLocale', __FILE__, Gdn::FactorySingleton, $TcLocale);
+		Gdn::FactoryOverwrite($Overwrite);
+	}
+	
+}
+
+
 
 class TranslationCollectorPlugin implements Gdn_IPlugin {
 	
 	private $_Definition = array();
 	private $_EnabledApplication = 'Dashboard';
+	private $SkipApplications = array();
 	
 	public function __construct() {
 		$Locale = Gdn::Locale();
@@ -80,28 +53,32 @@ class TranslationCollectorPlugin implements Gdn_IPlugin {
 		$Export = var_export($Locale, True);
 		$CutPointA = strpos($Export, "'_Definition' =>") + 16;
 		$CutPointB = strrpos($Export, "'_Locale' =>", $CutPointA);
-		if ($CutPointA === False || $CutPointB === False) 
-			trigger_error('Failed to detect CutPoints.');
+		if ($CutPointA === False || $CutPointB === False) {
+			trigger_error('Failed to detect cutpoints.', E_USER_ERROR);
+		}
 		$Match = substr($Export, $CutPointA, ($CutPointB - $CutPointA));
 		$Match = trim(trim(trim($Match), ','));
 		eval("\$this->_Definition = $Match;");
+		
+		$this->SkipApplications = C('Plugins.TranslationCollector.SkipApplications', array());
 	}
 	
 	protected function Translate($Code) {
 		return ArrayValue($Code, $this->_Definition);
 	}
 	
-	public function Gdn_Locale_BeforeTranslate_Handler(&$Sender) {
+	public function TranslationCollectorLocale_BeforeTranslate_Handler(&$Sender) {
+		
 		$Application = $this->_EnabledApplication();
-		$SkipApplications = C('Plugins.TranslationCollector.SkipApplications', array());
-		if (in_array($Application, $SkipApplications)) return;
+		if (in_array($Application, $this->SkipApplications)) return;
 		
 		$Code = GetValue('Code', $Sender->EventArguments, '');
+		if (substr($Code, 0, 1) == '@') return;
 		if (array_key_exists($Code, $this->_Definition)) return;
 		
 		$File = CombinePaths(array(dirname(__FILE__), 'undefined', $Application.'.php'));
-		$HelpText = 'TRANSLATE, CUT AND PASTE THIS TO /applications/application-folder/locale/locale-name-folder/definitions.php';
-		$HelpText .= '\xEF\xBB\xBF'; // UTF-8 byte order mask
+		$HelpText = 'TRANSLATE, CUT AND PASTE THIS TO /locales/locale-name-folder/definitions.php';
+		$HelpText .= "\xEF\xBB\xBF"; // utf-8 byte order mask
 		if (!file_exists($File)) Gdn_FileSystem::SaveFile($File, "<?php // $HelpText\n");
 		$Definition = array();
 		include $File;
