@@ -73,18 +73,22 @@ class TranslationCollectorPlugin implements Gdn_IPlugin {
 		if (in_array($Application, $this->_SkipApplications)) return;
 		
 		$Code = GetValue('Code', $Sender->EventArguments, '');
+		
 		if (substr($Code, 0, 1) == '@') return;
 		if (array_key_exists($Code, $this->_Definition)) return;
 		
+		$Application = strtolower($Application);
 		$File = dirname(__FILE__) . '/undefined/' . $Application . '.php';
-		$HelpText = "Translate, cut and paste this to /locales/your-locale/$Application.php";
-		if (!file_exists($File)) file_put_contents($File, "<?php // \xEF\xBB\xBF $HelpText\n");
+		if (!file_exists($File)) {
+			$HelpText = "Translate, cut and paste this to /locales/your-locale/$Application.php";
+			file_put_contents($File, "<?php // $HelpText \xEF\xBB\xBF\n");
+		}
 		$Definition = array();
 		include $File;
 		if (!array_key_exists($Code, $Definition)) {
 			// Should be escaped.
 			$Code = var_export($Code, True);
-			$PhpArrayCode .= "\n\$Definition[".$Code."] = $Code;";
+			$PhpArrayCode = "\n\$Definition[".$Code."] = $Code;";
 			file_put_contents($File, $PhpArrayCode, FILE_APPEND | LOCK_EX);
 		}
 	}
