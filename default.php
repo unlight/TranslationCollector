@@ -3,7 +3,7 @@
 $PluginInfo['TranslationCollector'] = array(
 	'Name' => 'Translation Collector',
 	'Description' => 'Collects undefined translation codes and save it for translating.',
-	'Version' => '1.6.10',
+	'Version' => '1.7.2.0.18',
 	'Date' => 'Summer 2011'
 );
 
@@ -31,7 +31,9 @@ if (C('Plugins.TranslationCollector.CaptureDefinitions', True)) {
 	$TcLocale = Gdn::Locale();
 	if (is_null($TcLocale)) {
 		$CurrentLocale = C('Garden.Locale', 'en-CA');
-		$TcLocale = new TranslationCollectorLocale($CurrentLocale, C('EnabledApplications'), C('EnabledPlugins'));
+		$EnabledApplicationFolders = Gdn::ApplicationManager()->EnabledApplicationFolders();
+		$EnabledPluginFolders = Gdn::PluginManager()->EnabledPluginFolders();
+		$TcLocale = new TranslationCollectorLocale($CurrentLocale, $EnabledApplicationFolders, $EnabledPluginFolders);
 		$Overwrite = Gdn::FactoryOverwrite(True);
 		Gdn::FactoryInstall(Gdn::AliasLocale, 'TranslationCollectorLocale', Null, Gdn::FactorySingleton, $TcLocale);
 		Gdn::FactoryOverwrite($Overwrite);
